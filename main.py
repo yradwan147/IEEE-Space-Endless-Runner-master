@@ -408,11 +408,13 @@ def run(config_file):
     p = neat.Population(config)
 
     # Add a stdout reporter to show progress in the terminal.
-    p = neat.Checkpointer.restore_checkpoint('final final checkpoint')
+    p = neat.Checkpointer.restore_checkpoint('final v5')
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
     p.add_reporter(neat.Checkpointer(100,1200))
+    p.config = config
+    # l = input(str(p.config.fitness_threshold))
 
     # node_names = {-1: 'x_player', -2: 'dot_x', -3: 'θ_1', -
     #               4: 'dot_θ_1', -5: 'θ_2', -6: 'dot_θ_2', 0: 'movment_rate'}
@@ -430,6 +432,19 @@ def run(config_file):
 
     print('\nBest genome:\n{!s}'.format(winner))
 
+def replay_genome(config_path, genome_path="winner_god.pkl"):
+    # Load requried NEAT config
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction, neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
+
+    # Unpickle saved winner
+    with open(genome_path, "rb") as f:
+        genome = pickle.load(f)
+
+    # Convert loaded genome into required data structure
+    genomes = [(1, genome)]
+
+    # Call game with only the loaded genome
+    main(genomes, config)
 
 if __name__ == '__main__':
     # Determine path to configuration file. This path manipulation is
@@ -437,4 +452,4 @@ if __name__ == '__main__':
     # current working directory.
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config.txt')
-    run(config_path)
+    replay_genome(config_path)
