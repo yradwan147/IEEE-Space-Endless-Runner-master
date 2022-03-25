@@ -21,6 +21,12 @@ ALLY_AIRCRAFT_IMG = pygame.image.load(
 ALLY_AIRCRAFT = pygame.transform.scale(
     ALLY_AIRCRAFT_IMG, (ALLY_AIRCRAFT_IMG.get_width() * 4, ALLY_AIRCRAFT_IMG.get_height() * 4))
 
+PLAYER_AIRCRAFT_IMG = pygame.image.load(
+    os.path.join('Assets', 'P_AIR_CRAFT.PNG'))
+
+PLAYER_AIRCRAFT = pygame.transform.scale(
+    PLAYER_AIRCRAFT_IMG, (PLAYER_AIRCRAFT_IMG.get_width() * 4, PLAYER_AIRCRAFT_IMG.get_height() * 4))
+
 #---------------------------------------------------------------------------------------------------------------#
 EDGE_IMG = pygame.image.load(
     os.path.join('Assets', 'EDGE.PNG'))
@@ -58,19 +64,20 @@ GREEN = (0, 255, 0)
 class Ally_Aircraft():
     player_rangle = 0
 
-    def __init__(self, ):
+    def __init__(self, player=False):
         self.transform = pygame.Rect(WIN_WIDTH * 1/16,
                                      WIN_HEIGHT/2 - ALLY_AIRCRAFT.get_height()/2,
                                      ALLY_AIRCRAFT.get_width(),
                                      ALLY_AIRCRAFT.get_height())
+        self.player = player
 
     def Movement(self, key_pressed):
 
         if key_pressed[pygame.K_w]:
-            print('UP')
+            # print('UP')
             self.transform.y -= 10
         if key_pressed[pygame.K_s]:
-            print('DOWN')
+            # print('DOWN')
             self.transform.y += 10
 
     def AIMovement(self, output):
@@ -96,7 +103,10 @@ class Ally_Aircraft():
         pass
 
     def Draw(self):
-        WIN.blit(ALLY_AIRCRAFT, (self.transform.x, self.transform.y))
+        if not self.player:
+            WIN.blit(ALLY_AIRCRAFT, (self.transform.x, self.transform.y))
+        else:
+            WIN.blit(PLAYER_AIRCRAFT, (self.transform.x, self.transform.y))
 
     def DebugDraw(self):
         pass
@@ -115,56 +125,61 @@ class Ally_Aircraft():
         # print(self.player_rangle)
 
     def Radar(self, radar_angle):
-        length = 0
-        x = int(self.transform.midleft[0])
-        y = int(self.transform.midleft[1])
-        try:
-            while not WIN.get_at((x, y)) == pygame.Color(34, 32, 52, 255) and length < 500:
+        if not self.player:
+            length = 0
+            x = int(self.transform.midleft[0])
+            y = int(self.transform.midleft[1])
+            try:
+                while not WIN.get_at((x, y)) == pygame.Color(34, 32, 52, 255) and length < 500:
 
-                length += 1
-                x = int(
-                    self.transform.midleft[0] + math.cos(math.radians(0 + radar_angle)) * length)
-                y = int(
-                    self.transform.midleft[1] - math.sin(math.radians(0 + radar_angle)) * length)
-        except:
-            pass
-        pygame.draw.line(WIN, (171, 203, 255),
-                         self.transform.midleft, (x, y), 3)
-        dist = int(math.sqrt(math.pow(self.transform.midleft[0] - x, 2)
-                             + math.pow(self.transform.midleft[1] - y, 2)))
-        # print(dist)
-        # _Inputs.append(radar_angle)
-        # _Inputs.append(dist)
-        _Inputs.extend([radar_angle, dist])
+                    length += 1
+                    x = int(
+                        self.transform.midleft[0] + math.cos(math.radians(0 + radar_angle)) * length)
+                    y = int(
+                        self.transform.midleft[1] - math.sin(math.radians(0 + radar_angle)) * length)
+            except:
+                pass
+            pygame.draw.line(WIN, (171, 203, 255),
+                            self.transform.midleft, (x, y), 3)
+            dist = int(math.sqrt(math.pow(self.transform.midleft[0] - x, 2)
+                                + math.pow(self.transform.midleft[1] - y, 2)))
+            # print(dist)
+            # _Inputs.append(radar_angle)
+            # _Inputs.append(dist)
+            _Inputs.extend([radar_angle, dist])
 
     def Destroy(self):
         if self.transform.y < 0 + EDGE.get_height():
             index = ally_aircrafts.index(self)
             ally_aircrafts.remove(self)
-            ge[index].fitness -= 100
-            ge.pop(index)
-            nets.pop(index)
+            if not self.player:
+                ge[index].fitness -= 100
+                ge.pop(index)
+                nets.pop(index)
         if self.transform.y > (WIN_HEIGHT - ALLY_AIRCRAFT.get_height() - EDGE.get_height()):
             index = ally_aircrafts.index(self)
             ally_aircrafts.remove(self)
-            ge[index].fitness -= 100
-            ge.pop(index)
-            nets.pop(index)
+            if not self.player:
+                ge[index].fitness -= 100
+                ge.pop(index)
+                nets.pop(index)
 
     def DestroyOnContact(self, collider):
         if self.transform.colliderect(collider.transform):
             index = ally_aircrafts.index(self)
             ally_aircrafts.remove(self)
-            ge[index].fitness -= 100
-            ge.pop(index)
-            nets.pop(index)
+            if not self.player:
+                ge[index].fitness -= 100
+                ge.pop(index)
+                nets.pop(index)
 
     def Yay(self, collider, x):
-        if self.transform.colliderect(collider.transform):
+        if not self.player:
+            if self.transform.colliderect(collider.transform):
 
-            for g in ge:
-                g.fitness += 300
-            game_coins.pop(x)
+                for g in ge:
+                    g.fitness += 300
+                game_coins.pop(x)
 
 
 class WorldUPPER_EDGE():
@@ -335,6 +350,7 @@ def main(genomes, config):
         ge.append(genome)
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         nets.append(net)
+    ally_aircrafts.append(Ally_Aircraft(True))
     while True:
         clock.tick(TICK)
         WIN.fill((255, 255, 255))
@@ -354,11 +370,12 @@ def main(genomes, config):
         for i, aircraft in enumerate(ally_aircrafts):
             aircraft.Draw()
             aircraft.DebugDraw()
-            _Inputs = [aircraft.transform.y]
-            for radar_angle in (-70, -30, -10,0, 10, 30, 70):
-                aircraft.Radar(radar_angle)
+            if not aircraft.player:
+                _Inputs = [aircraft.transform.y]
+                for radar_angle in (-70, -30, -10,0, 10, 30, 70):
+                    aircraft.Radar(radar_angle)
 
-            ge[i].fitness += 3
+                ge[i].fitness += 3
             #print(str([i]) + str(ge[i].fitness))
 
             # for rock in rocks[:3]:
@@ -367,24 +384,28 @@ def main(genomes, config):
             #     for i in range(3-len(rocks)):
             #         _Inputs.extend([1000, 540])
 
-            if len(game_coins) < 1:
-                _Inputs.extend([1000])
-            else:
-                dist = int(math.sqrt(math.pow(aircraft.transform.midleft[0] - game_coins[0].transform.x, 2)
-                                     + math.pow(aircraft.transform.midleft[1] - game_coins[0].transform.y, 2)))
-                _Inputs.extend([dist])
+                if len(game_coins) < 1:
+                    _Inputs.extend([1000])
+                else:
+                    dist = int(math.sqrt(math.pow(aircraft.transform.midleft[0] - game_coins[0].transform.x, 2)
+                                        + math.pow(aircraft.transform.midleft[1] - game_coins[0].transform.y, 2)))
+                    _Inputs.extend([dist])
 
-            output = nets[ally_aircrafts.index(aircraft)].activate(
-                (_Inputs))
+                output = nets[ally_aircrafts.index(aircraft)].activate(
+                    (_Inputs))
 
             if aircraft in ally_aircrafts:
-                aircraft.AIMovement(output)
+                if aircraft.player:
+                    aircraft.Movement(pygame.key.get_pressed())
+                else:
+                    aircraft.AIMovement(output)
             for rock in rocks:
                 if aircraft in ally_aircrafts:
                     aircraft.DestroyOnContact(rock)
             for coin in game_coins:
                 if aircraft in ally_aircrafts:
-                    aircraft.Yay(coin, game_coins.index(coin))
+                    if not aircraft.player:
+                        aircraft.Yay(coin, game_coins.index(coin))
             if aircraft in ally_aircrafts:
                 aircraft.Destroy()
 
